@@ -1,6 +1,103 @@
 let activeTab = "overview";
 let showAddForm = false;
 
+// ---- Load the correct provider's data for this session --------------------
+// Demo account always uses the polished hardcoded data from dashboard-data.js.
+// Anyone who signed up gets their own (initially empty) profile, loaded from
+// localStorage and re-saved after every change so it persists across visits.
+(function loadActiveProfile() {
+  if (typeof isDemoAccount === "function" && isDemoAccount()) return; // keep demo data as-is
+
+  const email = sessionStorage.getItem("bookr_provider_email");
+  if (!email || typeof getStoredProfile !== "function") return;
+
+  const profile = getStoredProfile(email);
+  if (!profile) return;
+
+  DASH_PROVIDER = profile.provider;
+  DASH_SERVICES = profile.services;
+  DASH_AVAILABILITY = profile.availability;
+  DASH_BOOKINGS = profile.bookings;
+  DASH_SUBSCRIPTION = profile.subscription;
+})();
+
+function saveProfileIfNotDemo() {
+  if (typeof isDemoAccount === "function" && isDemoAccount()) return;
+  const email = sessionStorage.getItem("bookr_provider_email");
+  if (!email || typeof profileKey !== "function") return;
+  localStorage.setItem(
+    profileKey(email),
+    JSON.stringify({
+      provider: DASH_PROVIDER,
+      services: DASH_SERVICES,
+      availability: DASH_AVAILABILITY,
+      bookings: DASH_BOOKINGS,
+      subscription: DASH_SUBSCRIPTION,
+    })
+  );
+}
+
+// ---- Live updates across tabs (same device only) ---------------------------
+// The browser fires a "storage" event in every OTHER tab on this origin whenever
+// localStorage changes in one tab. A client paying for a booking (or requesting
+// a quote) in one tab writes straight into this provider's stored profile (see
+// app.js), which fires this listener here — so if the provider's dashboard is
+// open, it updates without them needing to refresh. This does NOT reach a
+// different device; that needs a real backend, which is the honest limit here.
+if (typeof isDemoAccount !== "function" || !isDemoAccount()) {
+  window.addEventListener("storage", (e) => {
+    const email = sessionStorage.getItem("bookr_provider_email");
+    if (!email || typeof profileKey !== "function") return;
+    if (e.key !== profileKey(email)) return; // a change to some other provider's data — ignore
+
+    const previousBookingCount = DASH_BOOKINGS.length;
+    const previousStatusById = new Map(DASH_BOOKINGS.map((b) => [b.id, b.status]));
+
+    const profile = getStoredProfile(email);
+    if (!profile) return;
+
+    DASH_PROVIDER = profile.provider;
+    DASH_SERVICES = profile.services;
+    DASH_AVAILABILITY = profile.availability;
+    DASH_BOOKINGS = profile.bookings;
+    DASH_SUBSCRIPTION = profile.subscription;
+
+    if (DASH_BOOKINGS.length > previousBookingCount) {
+      const newest = DASH_BOOKINGS[0];
+      showLiveToast(newest && newest.status === "Pending" ? "💬 New quote request received!" : "🎉 New booking received!");
+    } else {
+      const newlyCancelled = DASH_BOOKINGS.find(
+        (b) => b.status === "Cancelled" && previousStatusById.get(b.id) && previousStatusById.get(b.id) !== "Cancelled"
+      );
+      if (newlyCancelled) {
+        showLiveToast(`A client cancelled: ${newlyCancelled.service}, ${newlyCancelled.day}`);
+      }
+    }
+
+    if (activeTab === "overview" || activeTab === "bookings") {
+      renderTab();
+    }
+  });
+}
+
+function showLiveToast(message) {
+  const existing = document.getElementById("liveToast");
+  if (existing) existing.remove();
+
+  const toast = document.createElement("div");
+  toast.id = "liveToast";
+  toast.className = "live-toast";
+  toast.setAttribute("role", "status");
+  toast.textContent = message;
+  document.body.appendChild(toast);
+
+  setTimeout(() => toast.classList.add("show"), 10);
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
 const content = document.getElementById("dashContent");
 const nav = document.getElementById("dashNav");
 
@@ -19,6 +116,8 @@ function renderTab() {
   if (activeTab === "services") return renderServices();
   if (activeTab === "availability") return renderAvailability();
   if (activeTab === "bookings") return renderBookings();
+  if (activeTab === "billing") return renderBilling();
+  if (activeTab === "settings") return renderSettings();
 }
 
 // ---- Overview ------------------------------------------------------------
@@ -30,7 +129,11 @@ function renderOverview() {
 
   content.innerHTML = `
     <h1 class="dash-title">Welcome back, ${DASH_PROVIDER.name}</h1>
-    <p class="dash-sub">Here's what's happening with your bookings.</p>
+    <p class="dash-sub">${
+      DASH_SERVICES.length === 0
+        ? "Let's get your profile set up — start by adding your services."
+        : "Here's what's happening with your bookings."
+    }</p>
 
     <div class="stat-grid">
       <div class="stat-card">
@@ -46,7 +149,7 @@ function renderOverview() {
         <p class="stat-label">Active services</p>
       </div>
       <div class="stat-card">
-        <p class="stat-value">4.9</p>
+        <p class="stat-value">${DASH_SERVICES.length === 0 && DASH_BOOKINGS.length === 0 ? "New" : "4.9"}</p>
         <p class="stat-label">Average rating</p>
       </div>
     </div>
@@ -76,13 +179,24 @@ function renderOverview() {
 
 // ---- Services --------------------------------------------------------------
 
+function formatDuration(mins) {
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m === 0 ? `${h} hr${h > 1 ? "s" : ""}` : `${h} hr${h > 1 ? "s" : ""} ${m} min`;
+}
+
 function renderServices() {
   content.innerHTML = `
     <h1 class="dash-title">Services</h1>
     <p class="dash-sub">What you offer, and what clients pay.</p>
 
     <div id="serviceRows">
-      ${DASH_SERVICES.map(serviceRowHTML).join("")}
+      ${
+        DASH_SERVICES.length
+          ? DASH_SERVICES.map(serviceRowHTML).join("")
+          : `<p class="empty-state" style="padding:24px 0;">You haven't added any services yet.</p>`
+      }
     </div>
 
     ${
@@ -102,6 +216,7 @@ function renderServices() {
           <input type="number" id="newServicePrice" placeholder="8000" />
         </div>
         <button class="save-btn" id="saveServiceBtn">Save</button>
+        <p class="settings-status" id="addServiceError" style="grid-column: 1 / -1; margin: 4px 0 0;"></p>
       </div>
     `
         : `<button class="add-btn" id="showAddFormBtn">+ Add a service</button>`
@@ -111,6 +226,7 @@ function renderServices() {
   document.querySelectorAll("[data-remove-id]").forEach((btn) => {
     btn.addEventListener("click", () => {
       DASH_SERVICES = DASH_SERVICES.filter((s) => s.id !== btn.dataset.removeId);
+      saveProfileIfNotDemo();
       renderServices();
     });
   });
@@ -127,21 +243,29 @@ function renderServices() {
   if (saveBtn) {
     saveBtn.addEventListener("click", () => {
       const name = document.getElementById("newServiceName").value.trim();
-      const duration = Number(document.getElementById("newServiceDuration").value) || 30;
-      const price = Number(document.getElementById("newServicePrice").value) || 0;
-      if (!name) return;
+      const durationRaw = document.getElementById("newServiceDuration").value.trim();
+      const priceRaw = document.getElementById("newServicePrice").value.trim();
+      const errorEl = document.getElementById("addServiceError");
+
+      if (!name) {
+        errorEl.textContent = "Give the service a name.";
+        errorEl.classList.add("settings-status-error");
+        return;
+      }
+      if (!priceRaw || Number(priceRaw) <= 0) {
+        errorEl.textContent = "Enter a price for this service.";
+        errorEl.classList.add("settings-status-error");
+        return;
+      }
+
+      const duration = Number(durationRaw) || 30;
+      const price = Number(priceRaw);
       DASH_SERVICES.push({ id: "s" + Date.now(), name, duration, price });
       showAddForm = false;
+      saveProfileIfNotDemo();
       renderServices();
     });
   }
-}
-
-function formatDuration(mins) {
-  if (mins < 60) return `${mins} min`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m === 0 ? `${h} hr${h > 1 ? "s" : ""}` : `${h} hr${h > 1 ? "s" : ""} ${m} min`;
 }
 
 function serviceRowHTML(s) {
@@ -191,6 +315,7 @@ function renderAvailability() {
     const idx = list.indexOf(hour);
     if (idx === -1) list.push(hour);
     else list.splice(idx, 1);
+    saveProfileIfNotDemo();
     renderAvailability();
   });
 }
@@ -202,10 +327,12 @@ let editingBookingId = null;
 function renderBookings() {
   content.innerHTML = `
     <h1 class="dash-title">Bookings</h1>
-    <p class="dash-sub">All appointments, past and upcoming. Click Edit to change the day, time, or status.</p>
+    <p class="dash-sub">All appointments and quote requests. Click Edit to change the day, time, or status.</p>
 
     <div class="booking-table-wrap">
-    <table class="booking-table">
+    ${
+      DASH_BOOKINGS.length
+        ? `<table class="booking-table">
       <thead>
         <tr>
           <th>Client</th>
@@ -219,7 +346,9 @@ function renderBookings() {
       <tbody id="bookingRows">
         ${DASH_BOOKINGS.map(bookingRowHTML).join("")}
       </tbody>
-    </table>
+    </table>`
+        : `<p class="empty-state" style="padding:24px 0;">No bookings yet — they'll show up here once clients start booking you.</p>`
+    }
     </div>
   `;
 
@@ -295,9 +424,148 @@ function attachBookingListeners() {
       if (time) booking.time = time;
       booking.status = status;
       editingBookingId = null;
+      saveProfileIfNotDemo();
       renderBookings();
     });
   });
+}
+
+// ---- Billing ----------------------------------------------------------------
+
+function renderBilling() {
+  const sub = DASH_SUBSCRIPTION;
+
+  content.innerHTML = `
+    <h1 class="dash-title">Billing</h1>
+    <p class="dash-sub">Your Bookr subscription.</p>
+
+    <div class="billing-card">
+      <div class="billing-status-row">
+        <div>
+          <p class="billing-plan-name">Bookr Provider Plan</p>
+          <p class="billing-plan-price">₦${sub.monthlyFee.toLocaleString()}<span class="billing-per">/month</span></p>
+        </div>
+        <span class="status-chip ${sub.active ? "status-confirmed" : "status-pending"}">${sub.active ? "Active" : "Not active"}</span>
+      </div>
+
+      ${
+        sub.active
+          ? `<p class="billing-detail">Your subscription is active. Last payment ref: <span class="font-mono">${sub.lastPaymentRef || "—"}</span></p>`
+          : `<p class="billing-detail">Pay your monthly fee to keep your profile visible to clients and accepting bookings.</p>
+             <button class="add-btn" id="paySubscriptionBtn"><span id="subBtnLabel">Pay ₦${sub.monthlyFee.toLocaleString()} now</span></button>`
+      }
+      <p class="payment-note" id="subPaymentStatus" style="text-align:left; margin-top:16px;">Secure test payment via Paystack. No real charge will be made.</p>
+    </div>
+  `;
+
+  const payBtn = document.getElementById("paySubscriptionBtn");
+  if (payBtn) {
+    payBtn.addEventListener("click", () => paySubscription());
+  }
+}
+
+function paySubscription() {
+  const email = sessionStorage.getItem("bookr_provider_email") || "provider@example.com";
+  const payBtn = document.getElementById("paySubscriptionBtn");
+  const label = document.getElementById("subBtnLabel");
+  const status = document.getElementById("subPaymentStatus");
+
+  payBtn.disabled = true;
+  payBtn.classList.add("processing");
+  label.innerHTML = '<span class="btn-spinner"></span> Opening secure payment…';
+  status.textContent = "Redirecting to Paystack — don't close this tab.";
+  status.classList.remove("payment-status-error");
+
+  const handler = PaystackPop.setup({
+    key: PAYSTACK_PUBLIC_KEY,
+    email: email,
+    amount: DASH_SUBSCRIPTION.monthlyFee * 100,
+    currency: "NGN",
+    ref: "bookr_sub_" + Date.now(),
+    callback: function (response) {
+      DASH_SUBSCRIPTION.active = true;
+      DASH_SUBSCRIPTION.lastPaymentRef = response.reference;
+      saveProfileIfNotDemo();
+      renderBilling();
+    },
+    onClose: function () {
+      const btn = document.getElementById("paySubscriptionBtn");
+      const lbl = document.getElementById("subBtnLabel");
+      const st = document.getElementById("subPaymentStatus");
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove("processing");
+      }
+      if (lbl) lbl.textContent = `Pay ₦${DASH_SUBSCRIPTION.monthlyFee.toLocaleString()} now`;
+      if (st) {
+        st.textContent = "Payment was cancelled — nothing was charged. You can try again anytime.";
+        st.classList.add("payment-status-error");
+      }
+    },
+  });
+  handler.openIframe();
+}
+
+// ---- Settings ----------------------------------------------------------------
+
+const BOOKR_CATEGORIES = ["Home Services", "Beauty & Grooming", "Tutoring", "Events", "Auto & Repair", "Cleaning", "Fitness & Wellness", "Tech Repairs", "Pet Care"];
+
+function renderSettings() {
+  const p = DASH_PROVIDER;
+  const isDemo = typeof isDemoAccount === "function" && isDemoAccount();
+
+  content.innerHTML = `
+    <h1 class="dash-title">Settings</h1>
+    <p class="dash-sub">Your business profile, as clients see it.</p>
+
+    <div class="settings-card">
+      ${
+        isDemo
+          ? `<p class="settings-demo-note">You're viewing the demo account — changes here won't be saved, since this profile resets each session.</p>`
+          : ""
+      }
+
+      <label class="login-label" for="settingsName">Business name</label>
+      <input class="edit-input" type="text" id="settingsName" value="${escapeAttr(p.name)}" />
+
+      <label class="login-label" for="settingsCategory">Category</label>
+      <select class="edit-input" id="settingsCategory">
+        ${BOOKR_CATEGORIES.map((c) => `<option value="${c}" ${p.category === c ? "selected" : ""}>${c}</option>`).join("")}
+      </select>
+
+      <label class="login-label" for="settingsLocation">Location</label>
+      <input class="edit-input" type="text" id="settingsLocation" value="${escapeAttr(p.location || "")}" />
+
+      <p class="settings-status" id="settingsStatus" role="status" aria-live="polite"></p>
+
+      <button class="add-btn" id="saveSettingsBtn">Save changes</button>
+    </div>
+  `;
+
+  document.getElementById("saveSettingsBtn").addEventListener("click", () => {
+    const name = document.getElementById("settingsName").value.trim();
+    const category = document.getElementById("settingsCategory").value;
+    const location = document.getElementById("settingsLocation").value.trim();
+    const status = document.getElementById("settingsStatus");
+
+    if (!name || !location) {
+      status.textContent = "Business name and location can't be empty.";
+      status.classList.add("settings-status-error");
+      return;
+    }
+
+    DASH_PROVIDER.name = name;
+    DASH_PROVIDER.category = category;
+    DASH_PROVIDER.location = location;
+    saveProfileIfNotDemo();
+
+    status.textContent = isDemo ? "Updated for this session (demo changes aren't saved)." : "Saved.";
+    status.classList.remove("settings-status-error");
+  });
+}
+
+function escapeAttr(str) {
+  return String(str).replace(/"/g, "&quot;");
 }
 
 // ---- Init -----------------------------------------------------------------------

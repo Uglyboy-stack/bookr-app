@@ -1,4 +1,4 @@
-const DASH_PROVIDER = {
+let DASH_PROVIDER = {
   name: "Ada's Braids & Weaves",
   category: "Beauty & Grooming",
 };
@@ -12,7 +12,6 @@ let DASH_SERVICES = [
 const WEEK_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const HOURS = ["9:00", "11:00", "13:00", "15:00", "17:00"];
 
-// which hours are toggled "on" per day (mock, pre-seeded)
 let DASH_AVAILABILITY = {
   Monday: ["9:00", "11:00", "13:00"],
   Tuesday: ["9:00", "11:00", "13:00", "15:00"],
@@ -30,3 +29,10 @@ let DASH_BOOKINGS = [
   { id: "b4", client: "Ngozi T.", service: "Box Braids (Medium)", day: "Fri, 5 Sep", time: "9:00 AM", status: "Confirmed", price: 15000 },
   { id: "b5", client: "Ifeoma K.", service: "Silk Press", day: "Sat, 6 Sep", time: "11:00 AM", status: "Pending", price: 10000 },
 ];
+
+// PLACEHOLDER PRICE — swap monthlyFee to the real subscription amount once decided.
+let DASH_SUBSCRIPTION = {
+  active: false,
+  monthlyFee: 5000,
+  lastPaymentRef: null,
+};

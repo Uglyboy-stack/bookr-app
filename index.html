@@ -4,20 +4,38 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Bookr — Book any service, near you</title>
+<meta name="description" content="Book trusted home services, beauty, tutoring, events, auto repair and more, near you — see real prices and available times, instantly." />
+<meta property="og:title" content="Bookr — Book any service, near you" />
+<meta property="og:description" content="Book trusted service providers near you — any kind of service, one app." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23A8324A'/%3E%3Ctext x='16' y='22' font-size='16' font-family='serif' font-weight='600' text-anchor='middle' fill='%23FBF7F4'%3EB%3C/text%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
+  <a href="#app" class="skip-link">Skip to main content</a>
+
   <header class="site-header">
-    <span class="logo-mark">B</span>
+    <span class="logo-mark" aria-hidden="true">B</span>
     <span class="logo-text">Bookr</span>
-    <a href="provider-landing.html" class="header-link">For Providers</a>
+    <nav class="header-nav" aria-label="Primary">
+      <a href="#" id="myBookingsLink" class="header-link">My Bookings</a>
+      <a href="#" id="savedLink" class="header-link">Saved</a>
+      <a href="provider-landing.html" class="header-link">For Providers</a>
+    </nav>
   </header>
 
   <main id="app"></main>
 
+  <footer class="site-footer">
+    <span class="logo-text" style="font-size:15px;">Bookr</span>
+    <span>Any service, booked simply.</span>
+    <a href="provider-landing.html">For Providers</a>
+  </footer>
+
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+  <script src="paystack-config.js"></script>
   <script src="data.js"></script>
   <script src="app.js"></script>
 </body>

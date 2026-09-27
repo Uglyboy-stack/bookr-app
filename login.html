@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Bookr for Providers — Log in</title>
+<title>Bookr for Providers — Log in or sign up</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css" />
@@ -19,25 +19,70 @@
   </header>
 
   <div class="login-shell">
-    <form class="login-card" id="loginForm">
-      <h1 class="dash-title" style="margin-bottom:4px;">Provider log in</h1>
-      <p class="dash-sub">Manage your services, availability, and bookings.</p>
-
-      <label class="login-label" for="email">Email</label>
-      <input class="edit-input login-input" type="email" id="email" placeholder="you@business.com" required />
-
-      <label class="login-label" for="password">Password</label>
-      <input class="edit-input login-input" type="password" id="password" placeholder="••••••••" required />
-
-      <p class="login-error" id="loginError" style="display:none;">Enter an email and password to continue.</p>
-
-      <button type="submit" class="add-btn login-submit">Log in</button>
-      <div class="demo-creds">
-        <p class="demo-creds-title">Demo login</p>
-        <p class="demo-creds-row">ada@bookr-demo.com</p>
-        <p class="demo-creds-row">Password: demo1234</p>
+    <div class="login-card">
+      <div class="auth-tabs" role="tablist" aria-label="Log in or sign up">
+        <button class="auth-tab active" id="tabLogin" role="tab" aria-selected="true" aria-controls="loginPanel">Log in</button>
+        <button class="auth-tab" id="tabSignup" role="tab" aria-selected="false" aria-controls="signupPanel">Sign up</button>
       </div>
-    </form>
+
+      <!-- ---- Log in panel ---- -->
+      <form id="loginPanel" role="tabpanel" aria-labelledby="tabLogin">
+        <h1 class="dash-title" style="margin-bottom:4px;">Welcome back</h1>
+        <p class="dash-sub">Manage your services, availability, and bookings.</p>
+
+        <label class="login-label" for="email">Email</label>
+        <input class="edit-input login-input" type="email" id="email" placeholder="you@business.com" required />
+
+        <label class="login-label" for="password">Password</label>
+        <input class="edit-input login-input" type="password" id="password" placeholder="••••••••" required />
+
+        <p class="login-error" id="loginError" role="alert" style="display:none;"></p>
+
+        <button type="submit" class="add-btn login-submit">Log in</button>
+        <div class="demo-creds">
+          <p class="demo-creds-title">Demo login</p>
+          <p class="demo-creds-row">ada@bookr-demo.com</p>
+          <p class="demo-creds-row">Password: demo1234</p>
+        </div>
+      </form>
+
+      <!-- ---- Sign up panel ---- -->
+      <form id="signupPanel" role="tabpanel" aria-labelledby="tabSignup" hidden>
+        <h1 class="dash-title" style="margin-bottom:4px;">Create your profile</h1>
+        <p class="dash-sub">Takes about a minute. You can fill in the rest later.</p>
+
+        <label class="login-label" for="suBusinessName">Business name</label>
+        <input class="edit-input login-input" type="text" id="suBusinessName" placeholder="e.g. QuickFix Gadgets" required />
+
+        <label class="login-label" for="suCategory">Category</label>
+        <select class="edit-input login-input" id="suCategory" required>
+          <option value="" disabled selected>Choose a category</option>
+          <option value="Home Services">Home Services</option>
+          <option value="Beauty & Grooming">Beauty & Grooming</option>
+          <option value="Tutoring">Tutoring</option>
+          <option value="Events">Events</option>
+          <option value="Auto & Repair">Auto & Repair</option>
+          <option value="Cleaning">Cleaning</option>
+          <option value="Fitness & Wellness">Fitness & Wellness</option>
+          <option value="Tech Repairs">Tech Repairs</option>
+          <option value="Pet Care">Pet Care</option>
+        </select>
+
+        <label class="login-label" for="suLocation">Location</label>
+        <input class="edit-input login-input" type="text" id="suLocation" placeholder="e.g. Yaba, Lagos" required />
+
+        <label class="login-label" for="suEmail">Email</label>
+        <input class="edit-input login-input" type="email" id="suEmail" placeholder="you@business.com" required />
+
+        <label class="login-label" for="suPassword">Password</label>
+        <input class="edit-input login-input" type="password" id="suPassword" placeholder="••••••••" required />
+
+        <p class="login-error" id="signupError" role="alert" style="display:none;"></p>
+
+        <button type="submit" class="add-btn login-submit">Create my profile</button>
+        <p class="login-hint">Your dashboard starts empty — add your services and hours once you're in.</p>
+      </form>
+    </div>
   </div>
 
   <script src="auth.js"></script>

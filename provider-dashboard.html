@@ -25,11 +25,15 @@
       <button class="dash-nav-item" data-tab="services">Services</button>
       <button class="dash-nav-item" data-tab="availability">Availability</button>
       <button class="dash-nav-item" data-tab="bookings">Bookings</button>
+      <button class="dash-nav-item" data-tab="billing">Billing</button>
+      <button class="dash-nav-item" data-tab="settings">Settings</button>
     </nav>
 
     <main id="dashContent" class="dash-content"></main>
   </div>
 
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+  <script src="paystack-config.js"></script>
   <script src="auth.js"></script>
   <script>
     // Guard: bounce to login if there's no active session
